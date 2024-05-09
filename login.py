@@ -1,15 +1,30 @@
 import json
 import os
-from instaloader import Instaloader, Post, Profile
-from instaloader.exceptions import ConnectionException
+from instaloader import Instaloader, Post, Profile, InstaloaderContext
+from instaloader.exceptions import ConnectionException, LoginRequiredException
 
-L = Instaloader(save_metadata=False, download_video_thumbnails=False)  # Disable metadata and video thumbnails download
+# Set up Instaloader
+L = Instaloader(save_metadata=False, download_video_thumbnails=False)
+context = InstaloaderContext(L)
+
+# Prompt for Instagram credentials
+USERNAME = "charliebobaboss"
+PASSWORD = "Bobalover"
+
+try:
+    # Login to Instagram
+    L.login(USERNAME, PASSWORD)
+except LoginRequiredException as e:
+    print(f"Login failed: {e}")
+    exit()
+
+# Set the apparent location to a country where you can access the desired Instagram account
+context._session._shared_data['country_code'] = 'US'  # Change 'US' to any country code where access is allowed
 
 PROFILE = input("Instagram Account: ")  # Replace this with the Instagram username of the profile you want to download data from
-profile = Profile.from_username(L.context, PROFILE)  # Get the profile data
+profile = Profile.from_username(context, PROFILE)  # Get the profile data
 
 post_data = []
-
 
 def download_post_with_filename(post: Post, target: str) -> str:
     """Download a post and return its generated filename with the correct extension."""
@@ -25,6 +40,10 @@ def download_post_with_filename(post: Post, target: str) -> str:
         filename += ".jpg"
     return filename
 
+# Create directory if it doesn't exist
+directory = PROFILE
+if not os.path.exists(directory):
+    os.makedirs(directory)
 
 # Download all the posts and save them in a folder named after the profile
 for post in profile.get_posts():
@@ -38,11 +57,10 @@ for post in profile.get_posts():
     })
 
 # Save the local file path and caption of each post in index.json
-with open(str(PROFILE + "/index.json"), 'w') as f:
+with open(os.path.join(PROFILE, "index.json"), 'w') as f:
     json.dump(post_data, f, indent=4)
 
 # Delete all the '.txt' files in the profile's folder
-directory = PROFILE
 for filename in os.listdir(directory):
     if filename.endswith(".txt"):
         os.remove(os.path.join(directory, filename))
